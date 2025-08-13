@@ -17,14 +17,14 @@ It is intended to achieve the following properties:
 * There's an amount $P(t)$ that steadily unlocks over time.
 * At any moment you can take the unlocked part; adding more later shouldn't disturb what was already on its way to unlocking.
 
-$deposited = claimed + still\_vesting + claimable$
+$deposited = claimed + stillVesting + claimable$
 
 ## 2) The core curve
 
 * We model "steady unlocking" with exponential decay:
 
   $$
-  P(t) = P_0\,e^{-\lambda (t - t_0)}
+  P(t) = P_0 \cdot e^{-\lambda (t - t_0)}
   $$
 
   where:
@@ -34,7 +34,7 @@ $deposited = claimed + still\_vesting + claimable$
 * Unlocked by time $t$:
 
   $$
-  vested(t)=deposited-P(t)
+  vested(t) = deposited - P(t)
   $$
 
 **Quick tools**
@@ -71,7 +71,7 @@ That's just another exponential decay with the same λ. So it behaves identicall
 * What you can take right now:
 
   $$
-  claimable(t) = vested(t) - already\_claimed
+  claimable(t) = vested(t) - alreadyClaimed
   $$
 * Taking a claim doesn't change the curve for what remains; it only reduces the unclaimed total.
 
