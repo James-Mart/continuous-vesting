@@ -23,9 +23,7 @@ $deposited = claimed + stillVesting + claimable$
 
 * We model "steady unlocking" with exponential decay:
 
-  $$
-  P(t) = P_0 \cdot e^{-\lambda (t - t_0)}
-  $$
+  $$P(t) = P_0 \cdot e^{-\lambda (t - t_0)}$$
 
   where:
 
@@ -33,9 +31,7 @@ $deposited = claimed + stillVesting + claimable$
   * $\lambda$ = per-second rate (e.g., $0.01$ for ~1%/s).
 * Unlocked by time $t$:
 
-  $$
-  vested(t) = deposited - P(t)
-  $$
+  $$vested(t) = deposited - P(t)$$
 
 **Quick tools**
 
@@ -70,9 +66,7 @@ That's just another exponential decay with the same λ. So it behaves identicall
 
 * What you can take right now:
 
-  $$
-  claimable(t) = vested(t) - alreadyClaimed
-  $$
+  $$claimable(t) = vested(t) - alreadyClaimed$$
 * Taking a claim doesn't change the curve for what remains; it only reduces the unclaimed total.
 
 
