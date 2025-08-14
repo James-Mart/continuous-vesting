@@ -70,3 +70,21 @@ That's just another exponential decay with the same λ. So it behaves identicall
 * Taking a claim doesn't change the curve for what remains; it only reduces the unclaimed total.
 
 
+## Calculating decay rate from half-life
+
+It's easier for people to specify a half-life than a decay-rate-in-seconds, so we need a formula for converting a half-life into a decay rate.
+
+
+If we define half-life as follows:
+
+$$P(T_{1/2})=\tfrac{1}{2}P_0$$
+
+We can derive the formula algebraically:
+
+1. The remaining principal: $$P(t)=P_0\,e^{-\lambda t}.$$
+2. Substitute in half-life: $$P_0 e^{-\lambda T_{1/2}}=\tfrac{1}{2}P_0$$
+3. Divide both sides: $$e^{-\lambda T_{1/2}}=\tfrac{1}{2}$$
+4. Take natural logs: $$-\lambda T_{1/2}=\ln\!\left(\tfrac{1}{2}\right)$$
+5. $\ln(1/2)=-\ln 2$, so it reduces to $$-\lambda T_{1/2}=-\ln 2$$
+6. Solve for $\lambda$: $$\lambda=\frac{\ln 2}{T_{1/2}}$$
+7. If $T_{1/2}$ is given in **days** $d$ and we want $\lambda$ **per second**: $$T_{1/2}=d\cdot 86{,}400 \quad\Rightarrow\quad\lambda=\frac{\ln 2}{d\cdot 86{,}400}$$
