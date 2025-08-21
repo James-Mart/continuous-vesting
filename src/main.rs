@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use fixed::types::I32F32;
 use std::cell::RefCell;
 
 #[derive(Default, Clone, Copy)]
@@ -34,7 +35,7 @@ pub fn clock_reset(ts: u64) {
 
 #[derive(Default)]
 struct RewardBucket {
-    decay_rate_per_second: f64,
+    decay_rate_per_second: I32F32,
     total_deposited: u128, // Cumulative
     total_claimed: u128,   // Cumulative
 
@@ -45,8 +46,8 @@ struct RewardBucket {
 impl RewardBucket {
     const SECONDS_PER_DAY: f64 = 86_400.0;
 
-    fn decay_rate_from_half_life(days: f64) -> f64 {
-        std::f64::consts::LN_2 / (days * Self::SECONDS_PER_DAY)
+    fn decay_rate_from_half_life(days: f64) -> I32F32 {
+        I32F32::from_num(std::f64::consts::LN_2 / (days * Self::SECONDS_PER_DAY))
     }
 
     /// Construct with half-life (in days) and automatically compute the rate.
@@ -54,9 +55,9 @@ impl RewardBucket {
         Self::new(Self::decay_rate_from_half_life(days))
     }
 
-    fn new(decay_rate_per_second: f64) -> Self {
+    fn new(decay_rate_per_second: I32F32) -> Self {
         Self {
-            decay_rate_per_second,
+            decay_rate_per_second: I32F32::from_num(decay_rate_per_second),
             ..Default::default()
         }
     }
@@ -89,8 +90,10 @@ impl RewardBucket {
         if self.last_update_principal == 0 {
             return 0;
         }
-        let dt = now().saturating_sub(self.last_update_timestamp) as f64;
-        let factor = (-self.decay_rate_per_second * dt).exp();
+        let dt = now().saturating_sub(self.last_update_timestamp);
+        let dt = I32F32::saturating_from_num(dt); // TODO could overflow?
+        let factor: f64 = cordic::exp(-self.decay_rate_per_second * dt).to_num();
+        // TODO last_update_principal u128 -> f64 overflow? Do we really want u128? could i64 work?
         ((self.last_update_principal as f64) * factor).floor() as u128
     }
 
@@ -133,18 +136,47 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cordic;
+    use fixed::types::I32F32;
 
-    fn principal_after(p: u128, secs: u64, lambda: f64) -> u128 {
-        ((p as f64) * (-lambda * secs as f64).exp()).floor() as u128
+    // TODO u64 or u128 overflow?
+    fn principal_after(p: u128, secs: u64, lambda: I32F32) -> u128 {
+        let principal = I32F32::saturating_from_num(p);
+        let secs = I32F32::saturating_from_num(secs);
+        (principal * cordic::exp(-lambda * secs)).to_num::<u128>()
     }
-    fn vested_after(p: u128, secs: u64, lambda: f64) -> u128 {
+    fn vested_after(p: u128, secs: u64, lambda: I32F32) -> u128 {
         p - principal_after(p, secs, lambda)
+    }
+    fn assert_approx_eq(computed: f64, expected: f64, max_err: f64) {
+        let err = (computed - expected).abs();
+        if err > max_err {
+            panic!("computed {}, expected {}", computed, expected);
+        }
+    }
+
+    #[test]
+    fn fixed_point_precision() {
+        let principal: f64 = 100.0;
+        let secs: f64 = 10.0;
+        let lambda: f64 = 0.01;
+
+        let fixed_point_principal = I32F32::saturating_from_num(principal);
+        let fixed_point_secs = I32F32::saturating_from_num(secs);
+        let fixed_point_lambda = I32F32::saturating_from_num(lambda);
+
+        let normal_res = principal * (-secs * lambda).exp();
+        let fixed_point_res: f64 =
+            (fixed_point_principal * cordic::exp(-fixed_point_lambda * fixed_point_secs)).to_num();
+
+        println!("R: {fixed_point_res}, RR: {normal_res}");
+        assert_approx_eq(fixed_point_res, normal_res, 0.000_001);
     }
 
     #[test]
     fn continuous_basic() {
         clock_reset(0);
-        let rate = 0.01; // 1% per second
+        let rate = I32F32::from_num(0.01); // 1% per second
         let mut b = RewardBucket::new(rate);
 
         b.deposit(100);
@@ -166,7 +198,7 @@ mod tests {
     #[test]
     fn deposit_preserves_withdrawable() {
         clock_reset(0);
-        let rate = 0.01;
+        let rate = I32F32::from_num(0.01);
         let mut b = RewardBucket::new(rate);
 
         b.deposit(100);
@@ -190,7 +222,7 @@ mod tests {
     #[test]
     fn withdraw_side_effects_and_conservation() {
         clock_reset(0);
-        let rate = 0.01;
+        let rate = I32F32::from_num(0.01);
         let mut b = RewardBucket::new(rate);
 
         b.deposit(200);
@@ -207,7 +239,7 @@ mod tests {
     #[test]
     fn time_split_equivalence() {
         clock_reset(0);
-        let rate = 0.01;
+        let rate = I32F32::from_num(0.01);
         let mut b = RewardBucket::new(rate);
 
         b.deposit(100);
@@ -226,7 +258,8 @@ mod tests {
     fn dust_eventually_rounds_to_zero() {
         clock_reset(0);
         let rate = 0.01;
-        let mut b = RewardBucket::new(rate);
+        let fixed_point_rate = I32F32::from_num(rate);
+        let mut b = RewardBucket::new(fixed_point_rate);
 
         b.deposit(100);
 
