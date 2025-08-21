@@ -1,6 +1,14 @@
 [package]
-name = "RewardBuckets"
+name = "TokenStream"
 version = "0.1.0"
 edition = "2024"
+
+[lib]
+name = "token_stream"
+path = "src/token_stream.rs"
+
+[[test]]
+name = "tests"
+path = "src/tests.rs"
 
 [dependencies]
